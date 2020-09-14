@@ -53,10 +53,10 @@ RUN python glm_model_26_c.py
 WORKDIR /src/app
 # set app port
 
-EXPOSE 8020
+EXPOSE 8080
 
 # Run app.py when the container launches
-CMD [ "gunicorn", "--bind", "0.0.0.0:8020", "app:app" ]
+CMD [ "gunicorn", "--bind", "0.0.0.0:8080", "app:app" ]
 
 
 
