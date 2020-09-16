@@ -12,7 +12,6 @@ model_path = "ML_Model/prediction_pickles/model.pkl"
 @app.route("/predict", methods=['POST'])
 def predict_model():
     test = request.get_json(force=True)
-
     test = pd.DataFrame.from_dict(test)
 
     # formatting to numeric
@@ -31,7 +30,6 @@ def predict_model():
     train_col_path = "ML_Model/prediction_pickles/train_columns.pkl"
     train_columns = pickle.load(open(train_col_path, 'rb'))
 
-
     #  loading the fitted_std_scaler from disk
     fitted_std_scaler_path = "ML_Model/prediction_pickles/fitted_std_scaler.pkl"
     fitted_std_scaler = pickle.load(open(fitted_std_scaler_path, 'rb'))
@@ -39,20 +37,33 @@ def predict_model():
     # stadardize the numeric variables with standardscaler()
     test_imputed_std = pd.DataFrame(fitted_std_scaler.transform(test_imputed), columns=train_columns)
 
-    # 3 convert nominal categorical variables to numeric via 1 hot encoding
-    dumb5 = tff.dummies_funct(test['x5'], 'x5')
+    # Apply categorical_funct to x5 variable
+    testx5 = tff.categorical_funct(test['x5'], ['friday', 'saturday', 'sunday', 'monday',
+                                                'tuesday', 'wednesday', 'thursday'])
+    # Create dummies for x5 variable
+    dumb5 = tff.dummies_funct(testx5, 'x5')
     test_imputed_std = dfsf.df_df_concat(test_imputed_std, dumb5)
 
-    # 3 convert nominal categorical variables to numeric
-    dumb31 = tff.dummies_funct(test['x31'], 'x31')
+
+    # Apply categorical_funct to x31 variable
+    testx31 = tff.categorical_funct(test['x31'], ['america', 'germany', 'asia', 'japan'])
+    # Create dummies for x31 variable
+    dumb31 = tff.dummies_funct(testx31, 'x31')
     test_imputed_std = dfsf.df_df_concat(test_imputed_std, dumb31)
 
-    # 3 convert nominal categorical variables to numeric
-    dumb81 = tff.dummies_funct(test['x81'], 'x81')
+
+    # Apply categorical_funct to x81 variable
+    testx81 = tff.categorical_funct(test['x81'], ['April', 'July', 'December', 'October', 'February',
+                                                  'September', 'March', 'November', 'June', 'May', 'August',
+                                                  'January'])
+    # Create dummies for x81 variable
+    dumb81 = tff.dummies_funct(testx81, 'x81')
     test_imputed_std = dfsf.df_df_concat(test_imputed_std, dumb81)
 
-    # 3 convert nominal categorical variables to numeric
-    dumb82 = tff.dummies_funct(test['x82'], 'x82')
+    # Apply categorical_funct to x82 variable
+    testx82 = tff.categorical_funct(test['x82'], ['Female', 'Male'])
+    # Create dummies for x82 variable
+    dumb82 = tff.dummies_funct(testx82, 'x82')
     test_imputed_std = dfsf.df_df_concat(test_imputed_std, dumb82)
 
 
@@ -63,7 +74,7 @@ def predict_model():
     variables_path = "ML_Model/prediction_pickles/variables.pkl"
     variables = pickle.load(open(variables_path, 'rb'))
 
-
+    # Given,the input data, predict the results from the model
     predictions = pd.DataFrame(model.predict(test_imputed_std[variables])).rename(columns={0: 'probs'})
     predictions['prob_bin'] = pd.qcut(predictions['probs'], q=20)
 
@@ -83,10 +94,11 @@ def predict_model():
     # Re-label 75th% to 'event',below that label as 'no event'
     API_Output['left'] = ['event' if x >= qt_75 else 'no event' for x in API_Output['left']]
 
+    # Model Results to return
     API_Output.drop(columns=['prob_bin'], inplace=True)
-
     API_Output.rename(columns={'probs': 'phat', 'left': 'business_outcome'}, inplace=True)
 
+    # Model Variables to return
     sort_vars = sorted(variables)
     sort_vars = pd.DataFrame(sort_vars).rename(columns={0: 'model_variables'})
 
@@ -98,3 +110,121 @@ if __name__ == "__main__":
 
 
 
+# import pickle
+# import pandas as pd
+# from flask import Flask, jsonify, request
+# from pandas.io.json import json_normalize
+# import ML_Model.Test_Dataframes_pickles.dataframe_shape_functions as dfsf
+# import ML_Model.Test_Transformations_pickles.transformation_functions as tff
+# from pandas.api.types import CategoricalDtype
+#
+#
+# app = Flask(__name__)
+#
+# @app.route("/predict", methods=['POST'])
+# def predict_model():
+#     test = request.get_json(force=True)
+#     test = json_normalize(test)
+#
+#     # #1. Fixing the money and percents#
+#     test['x12'] = test['x12'].str.replace('$', '')
+#     test['x12'] = test['x12'].str.replace(',', '')
+#     test['x12'] = test['x12'].str.replace(')', '')
+#     test['x12'] = test['x12'].str.replace('(', '-')
+#     test['x12'] = test['x12'].astype(float)
+#     test['x63'] = test['x63'].str.replace('%', '')
+#     test['x63'] = test['x63'].astype(float)
+#
+#     test_imputed = tff.imputer_func(test, 'mean', ['x5', 'x31', 'x81', 'x82'])
+#     # train_columns = pickle.load(
+#     #     open(r"C:\Users\Rae-Djamaal\Anaconda3\Lib\Git_Uploads\State_Farm\ML_Model"
+#     #          r"\prediction_pickles\train_columns.pkl",
+#     #          "rb"))
+#     fitted_std_scaler = pickle.load(
+#         open(r"C:\Users\Rae-Djamaal\Anaconda3\Lib\Git_Uploads\State_Farm\ML_Model"
+#              r"\prediction_pickles\fitted_std_scaler.pkl", "rb"))
+#
+#     test_imputed_std = pd.DataFrame(fitted_std_scaler.transform(test_imputed), columns=test_imputed.columns)
+#
+#     def categorical_funct(col, cats):
+#         """
+#         # Make variables Categorical
+#         """
+#         cat_dtype = CategoricalDtype(categories=cats, ordered=True)
+#
+#         return col.astype(cat_dtype)
+#
+#
+#     # Apply categorical_funct to specify possibly unobserved variables from the request
+#     testx5 = categorical_funct(test['x5'], ['friday', 'saturday', 'sunday', 'monday',
+#                                             'tuesday', 'wednesday', 'thursday'])
+#     # Create dummies for x5 variable
+#     dumb5 = tff.dummies_funct(testx5, 'x5')
+#     test_imputed_std = dfsf.df_df_concat(test_imputed_std, dumb5)
+#
+#
+#     # Apply categorical_funct to specify possibly unobserved variables from the request
+#     testx31 = categorical_funct(test['x31'], ['america', 'germany', 'asia', 'japan'])
+#
+#     # Create dummies for x31 variable
+#     dumb31 = tff.dummies_funct(testx31, 'x31')
+#     test_imputed_std = dfsf.df_df_concat(test_imputed_std, dumb31)
+#
+#
+#     # Apply categorical_funct to specify possibly unobserved variables from the request
+#     testx81 = categorical_funct(test['x81'], ['April', 'July', 'December', 'October', 'February',
+#                                               'September', 'March', 'November', 'June', 'May', 'August',
+#                                               'January'])
+#
+#     # Create dummies for x81 variable
+#     dumb81 = tff.dummies_funct(testx81, 'x81')
+#     test_imputed_std = dfsf.df_df_concat(test_imputed_std, dumb81)
+#
+#
+#     # Apply categorical_funct to specify possibly unobserved variables from the request
+#     testx82 = categorical_funct(test['x82'], ['Female', 'Male'])
+#
+#     # Create dummies for x82 variable
+#     dumb82 = tff.dummies_funct(testx82, 'x82')
+#     test_imputed_std = dfsf.df_df_concat(test_imputed_std, dumb82)
+#
+#     # load the trained model
+#     model = pickle.load(open(r"C:\Users\Rae-Djamaal\Anaconda3\Lib\Git_Uploads\State_Farm\ML_Model"
+#                              r"\prediction_pickles\model.pkl", "rb"))
+#
+#     # load all the model variables
+#     variables = pickle.load(open(r"C:\Users\Rae-Djamaal\Anaconda3\Lib\Git_Uploads\State_Farm\ML_Model"
+#                                  r"\prediction_pickles\variables.pkl", "rb"))
+#
+#     # Given,the input data, predict the results from the model
+#     predictions = pd.DataFrame(model.predict(test_imputed_std[variables])).rename(columns={0: 'probs'})
+#     predictions['prob_bin'] = pd.qcut(predictions['probs'], q=20)
+#
+#     # position of 75%
+#     upperq = int(20 * 0.75)
+#
+#     API_Output = predictions
+#
+#     # Lower bound of 75th %
+#     qt_75 = API_Output.prob_bin.cat.categories[upperq]
+#     qt_75 = qt_75.left
+#
+#     # Create a column of all lower bounds and convert Caterory to floats
+#     API_Output['left'] = API_Output['prob_bin'].apply(lambda x: x.left).astype('float')
+#
+#     # Re-label 75th% to 'event',below that label as 'no event'
+#     API_Output['left'] = ['event' if x >= qt_75 else 'no event' for x in API_Output['left']]
+#
+#     # Model results to return
+#     API_Output.drop(columns=['prob_bin'], inplace=True)
+#     API_Output.rename(columns={'probs': 'phat', 'left': 'business_outcome'}, inplace=True)
+#
+#     # Model Variables to return
+#     sort_vars = sorted(variables)
+#     sort_vars = pd.DataFrame(sort_vars).rename(columns={0: 'model_variables'})
+#
+#     return jsonify(API_Output.to_dict(), sort_vars.to_dict())
+#
+#
+# if __name__ == "__main__":
+#     app.run(host='localhost', port=8080, debug=True)
